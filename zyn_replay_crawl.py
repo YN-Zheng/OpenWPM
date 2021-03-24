@@ -18,9 +18,9 @@ def main(crawl_date):
     wprgo = utils.Wprgo(wprgo_path, har_path)
 
     # The list of sites that we wish to crawl
-    NUM_BROWSERS = 8
+    NUM_BROWSERS = 7
     logger = utils.init_logger("crawl")
-    sites_completed = utils.continue_from_log(wprgo.crawl_date)
+    count, group_num, sites_completed = utils.continue_from_log(wprgo)
     if len(sites_completed) == 0:
         logger.info("Start a new crawl session. crawl_date:%s" % wprgo.crawl_date)
     elif len(sites_completed) == 10000:
@@ -68,8 +68,8 @@ def main(crawl_date):
         SQLiteStorageProvider(Path("./datadir/replay-crawl-data.sqlite")),
         None,
     ) as manager:
-        count = -1
-        for n in range(0, wprgo.total_number):
+        count -= 1
+        for n in range(group_num, wprgo.total_number):
             sites = wprgo.replay(n)
             # logger.info("Start crawl: %s:%d" % (wprgo.crawl_date, wprgo.number))
             # Visits the sites

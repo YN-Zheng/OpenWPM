@@ -19,23 +19,6 @@ def init_logger(name: str) -> logging.Logger:
     return logger
 
 
-def continue_from_log(crawl_date) -> set:
-    completed_count = set()
-    continue_point_exist = False
-    with open("crawl.log", "r") as log:
-        for l in log:
-            if l.find("Start a new crawl session. crawl_date:%s" % crawl_date) != -1:
-                continue_point_exist = True
-            if l.find("End of the crawl session. crawl_date:%s" % crawl_date) != -1:
-                break
-            if continue_point_exist:
-                i = l.find("index")
-                if i != -1:
-                    completed_count.add(int(l[i + 5 : i + 10]))
-
-    return completed_count
-
-
 class Wprgo:
     def __init__(self, wprgo_path, har_path) -> None:
         if (
@@ -152,6 +135,30 @@ class Wprgo:
         # def close(self):
         #     """Close the write end of the pipe."""
         #     os.close(self.fdWrite)
+
+
+def continue_from_log(wprgo: Wprgo):
+    crawl_date = wprgo.crawl_date
+    completed_index = set()
+    continue_point_exist = False
+    with open("crawl.log", "r") as log:
+        for l in log:
+            if l.find("Start a new crawl session. crawl_date:%s" % crawl_date) != -1:
+                continue_point_exist = True
+            if l.find("End of the crawl session. crawl_date:%s" % crawl_date) != -1:
+                break
+            if continue_point_exist:
+                i = l.find("index")
+                if i != -1:
+                    completed_index.add(int(l[i + 5 : i + 10]))
+    count = 0
+    for group_index in range(wprgo.total_number):
+        num_per_group = len(wprgo.get_hostnames(group_index))
+        for i in range(count, count + num_per_group):
+            if i not in completed_index:
+                return count, group_index, completed_index
+        count += num_per_group
+    return count, group_index, completed_index
 
 
 def get_wprgo_prefs() -> dict:

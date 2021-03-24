@@ -9,12 +9,14 @@ do
         echo "The crawl has end. Stop watchdog for it."
         exit
     fi
-	if [ $(python zyn_watchdog.py) -gt 100 ];then
-		now=$(date)
+    now=$(date)
+	if [ $(python zyn_watchdog.py) -gt 180 ];then
 		printf "%s :: Run zyn_replay_crawl.py \n" "$now"
         pkill python
         pkill wpr
-		python zyn_replay_crawl.py $crawl_date
+		python zyn_replay_crawl.py $crawl_date &
+    else
+        printf "%s :: Program running normally... \n" "$now"
 	fi
-	sleep 10
+	sleep 60
 done
