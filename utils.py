@@ -1,17 +1,17 @@
+import atexit
 import logging
 import os
 import signal
 import subprocess
 import sys
 import threading
-import atexit
 from os import path
 
 
-def init_logger() -> logging.Logger:
-    logger = logging.getLogger("replay")
+def init_logger(name: str) -> logging.Logger:
+    logger = logging.getLogger(name)
     logger.setLevel(logging.INFO)
-    handler = logging.FileHandler("replay.log")
+    handler = logging.FileHandler("%s.log" % name)
     formatter = logging.Formatter("%(asctime)s - %(levelname)-8s: %(message)s")
     handler.setFormatter(formatter)
     handler.setLevel(logging.INFO)
@@ -19,13 +19,21 @@ def init_logger() -> logging.Logger:
     return logger
 
 
-def kill_on_port(port):
-    subprocess.run(
-        ("kill -9 $(lsof -t -i:%d)" % port).split(),
-        shell=True,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.STDOUT,
-    )
+def continue_from_log(crawl_date) -> set:
+    completed_count = set()
+    continue_point_exist = False
+    with open("crawl.log", "r") as log:
+        for l in log:
+            if l.find("Start a new crawl session. crawl_date:%s" % crawl_date) != -1:
+                continue_point_exist = True
+            if l.find("End of the crawl session. crawl_date:%s" % crawl_date) != -1:
+                break
+            if continue_point_exist:
+                i = l.find("index")
+                if i != -1:
+                    completed_count.add(int(l[i + 5 : i + 10]))
+
+    return completed_count
 
 
 class Wprgo:
@@ -40,7 +48,7 @@ class Wprgo:
             raise ValueError("Must provide a valid WprGo path")
         self.__wprgo_path = wprgo_path
         self.__har_path = har_path
-        self.__logpipe = self.__LogPipe(init_logger)
+        self.__logpipe = self.__LogPipe("replay")
         self.__process = None
         self.__wprgo_path = wprgo_path
         self.number = None
@@ -102,10 +110,10 @@ class Wprgo:
 
     # https://codereview.stackexchange.com/questions/6567/redirecting-subprocesses-output-stdout-and-stderr-to-the-logging-module
     class __LogPipe(threading.Thread):
-        def __init__(self, func):
+        def __init__(self, name):
             """Setup the object with a logger and start the thread"""
             threading.Thread.__init__(self)
-            self.logger = func()
+            self.logger = init_logger(name)
             self.fdRead, self.fdWrite = os.pipe()
             self.pipeReader = os.fdopen(self.fdRead)
             self.running = threading.Event()
@@ -148,13 +156,6 @@ class Wprgo:
 
 def get_wprgo_prefs() -> dict:
     custom_prefs = dict()
-    # custom_prefs["network.proxy.http"] = "127.0.0.1"
-    # custom_prefs["network.proxy.http_port"] = 8080
-    # custom_prefs["network.proxy.ssl"] = "127.0.0.1"
-    # custom_prefs["network.proxy.ssl_port"] = 8081
-    # custom_prefs["network.proxy.type"] = 1
-    # network.dns.forceResolve	127.0.0.1
-    # network.socket.forcePort	443=8081;80=8080
     custom_prefs["network.dns.forceResolve"] = "127.0.0.1"
     custom_prefs["network.socket.forcePort"] = "443=8081;80=8080"
     # custom_prefs["signon.management.page.breach-alerts.enabled"] = False
