@@ -3,6 +3,7 @@ from pathlib import Path
 import sys
 import os
 import utils
+import time
 from custom_command import LinkCountingCommand
 from openwpm.command_sequence import CommandSequence
 from openwpm.commands.browser_commands import GetCommand
@@ -18,7 +19,7 @@ def main(crawl_date):
     wprgo = utils.Wprgo(wprgo_path, har_path)
 
     # The list of sites that we wish to crawl
-    NUM_BROWSERS = 7
+    NUM_BROWSERS = 8
     logger = utils.init_logger("crawl")
     count, group_num, sites_completed = utils.continue_from_log(wprgo)
     if len(sites_completed) == 0:
@@ -107,6 +108,7 @@ def main(crawl_date):
 
                 # Run commands across the three browsers (simple parallelization)
                 manager.execute_command_sequence(command_sequence)
+            time.sleep(60)
 
     logger.info("End of the crawl session. crawl_date:%s" % wprgo.crawl_date)
 

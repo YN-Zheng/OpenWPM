@@ -1,4 +1,4 @@
-# watch dog for process wpr. Why needed? OOM may occur and kill process
+# watch dog for replay_crawl.py
 crawl_date=$1
 # cd "${0%/*}" # cd folder of this script
 while true
