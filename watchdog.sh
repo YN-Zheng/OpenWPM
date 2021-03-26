@@ -10,7 +10,7 @@ do
         exit
     fi
     now=$(date)
-	if [ $(python zyn_watchdog.py) -gt 180 ];then
+	if [ $(python zyn_watchdog.py) -gt 300 ];then
 		printf "%s :: Run zyn_replay_crawl.py \n" "$now"
         pkill python
         pkill wpr

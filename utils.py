@@ -1,5 +1,6 @@
 import atexit
 import logging
+from openwpm.task_manager import TaskManager
 import os
 import signal
 import subprocess
@@ -8,13 +9,20 @@ import threading
 from os import path
 
 
+def wait_tasks(manager: TaskManager):
+    for browser in manager.browsers:
+        if browser.command_thread and browser.command_thread.is_alive():
+            # Waiting for the command_sequence to be finished
+            browser.command_thread.join()
+
+
 def init_logger(name: str) -> logging.Logger:
     logger = logging.getLogger(name)
     logger.setLevel(logging.INFO)
     handler = logging.FileHandler("%s.log" % name)
     formatter = logging.Formatter("%(asctime)s - %(levelname)-8s: %(message)s")
     handler.setFormatter(formatter)
-    handler.setLevel(logging.INFO)
+    handler.setLevel(logging.DEBUG)
     logger.addHandler(handler)
     return logger
 
@@ -39,9 +47,17 @@ class Wprgo:
         self.total_number = len(os.listdir(path.join(self.__har_path, "hostnames")))
         atexit.register(self.stop_replay)
 
+    def is_running(self) -> int:
+        if self.__process != None:
+            return self.number
+        return -1
+
     # number: number of wprgo archive to be replayed
     def replay(self, number):
-        # stop running replay if there is
+        # skip if already running
+        if self.is_running() == number:
+            return self.get_hostnames(number)
+        # stop running replay(if there is) for other number
         if self.__process != None:
             self.stop_replay()
         if number > self.total_number or number < 0:
@@ -151,14 +167,15 @@ def continue_from_log(wprgo: Wprgo):
                 i = l.find("index")
                 if i != -1:
                     completed_index.add(int(l[i + 5 : i + 10]))
-    count = 0
-    for group_index in range(wprgo.total_number):
-        num_per_group = len(wprgo.get_hostnames(group_index))
-        for i in range(count, count + num_per_group):
-            if i not in completed_index:
-                return count, group_index, completed_index
-        count += num_per_group
-    return count, group_index, completed_index
+    return completed_index
+    # count = 0
+    # for group_index in range(wprgo.total_number):
+    #     num_per_group = len(wprgo.get_hostnames(group_index))
+    #     for i in range(count, count + num_per_group):
+    #         if i not in completed_index:
+    #             return count, group_index, completed_index
+    #     count += num_per_group
+    # return count, group_index, completed_index
 
 
 def get_wprgo_prefs() -> dict:

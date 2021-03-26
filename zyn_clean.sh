@@ -1,7 +1,7 @@
 set -x
 pkill python
 pkill wpr
-mkdir 
+ 
 DEST=$(date +"%d_%I:%M")
 mkdir tmp/$DEST
 mv datadir tmp/$DEST

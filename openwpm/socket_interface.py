@@ -189,9 +189,9 @@ def _parse(serialization: bytes, msg: bytes) -> Any:
     if serialization == b"d":  # dill serialization
         return dill.loads(msg)
     if serialization == b"j":  # json serialization
-        return json.loads(msg.decode("utf-8"))
+        return json.loads(msg.decode("utf-8", errors="ignore"))
     if serialization == b"u":  # utf-8 serialization
-        return msg.decode("utf-8")
+        return msg.decode("utf-8", errors="ignore")
     raise ValueError("Unknown Encoding")
 
 
