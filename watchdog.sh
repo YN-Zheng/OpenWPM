@@ -4,7 +4,8 @@ crawl_date=$1
 while true
 do
     DONE=$(tail crawl.log | grep "End of the crawl session. crawl_date:"$crawl_date)
-	if [ "$DONE" ]
+    DONE2=$(tail crawl.log | grep "This crawl session is completed. crawl_date:"$crawl_date)
+    if [[ "$DONE" || "$DONE2" ]]
     then
         echo "The crawl has end. Stop watchdog for it."
         exit

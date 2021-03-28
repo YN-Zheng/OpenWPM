@@ -21,7 +21,7 @@ def main(crawl_date):
     wprgo = utils.Wprgo(wprgo_path, har_path)
 
     # The list of sites that we wish to crawl
-    NUM_BROWSERS = 3
+    NUM_BROWSERS = 8
     logger = utils.init_logger("crawl")
     logger.setLevel(logging.DEBUG)
     sites_completed = utils.continue_from_log(wprgo)
