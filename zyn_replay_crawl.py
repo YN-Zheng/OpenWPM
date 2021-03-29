@@ -18,6 +18,7 @@ def main(crawl_date):
     archive_path = "/home/yongnian/HttpArchive"
     har_path = os.path.join(archive_path, crawl_date)
     wprgo_path = "/home/yongnian/Programs/catapult/web_page_replay_go"
+
     wprgo = utils.Wprgo(wprgo_path, har_path)
 
     # The list of sites that we wish to crawl
