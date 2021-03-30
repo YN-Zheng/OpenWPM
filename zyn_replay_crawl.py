@@ -1,8 +1,7 @@
 import logging
 import os
 import sys
-import time
-from logging import info
+from os.path import join
 from pathlib import Path
 
 import utils
@@ -16,16 +15,17 @@ from openwpm.task_manager import TaskManager
 
 def main(crawl_date):
     archive_path = "/home/yongnian/HttpArchive"
-    har_path = os.path.join(archive_path, crawl_date)
+    har_path = join(archive_path, crawl_date)
     wprgo_path = "/home/yongnian/Programs/catapult/web_page_replay_go"
+    Path(utils.get_data_path(crawl_date)).mkdir(parents=True, exist_ok=True)
 
     wprgo = utils.Wprgo(wprgo_path, har_path)
 
     # The list of sites that we wish to crawl
     NUM_BROWSERS = 8
-    logger = utils.init_logger("crawl")
+    logger = utils.init_logger(utils.get_data_path(crawl_date, "crawl"))
     logger.setLevel(logging.DEBUG)
-    sites_completed = utils.continue_from_log(wprgo)
+    sites_completed = utils.get_completed_indexes(wprgo.crawl_date)
     if len(sites_completed) == 0:
         logger.info("Start a new crawl session. crawl_date:%s" % wprgo.crawl_date)
     elif len(sites_completed) >= 10000:
@@ -60,8 +60,9 @@ def main(crawl_date):
         browser_params[i].dns_instrument = True
         browser_params[i].prefs = utils.get_wprgo_prefs()
     # Update TaskManager configuration (use this for crawl-wide settings)
-    manager_params.data_directory = Path("./datadir/")
-    manager_params.log_directory = Path("./datadir/")
+    data_path = utils.get_data_path(crawl_date, "datadir")
+    manager_params.data_directory = Path(data_path)
+    manager_params.log_directory = Path(data_path)
 
     # memory_watchdog and process_watchdog are useful for large scale cloud crawls.
     # Please refer to docs/Configuration.md#platform-configuration-options for more information
@@ -71,7 +72,7 @@ def main(crawl_date):
     with TaskManager(
         manager_params,
         browser_params,
-        SQLiteStorageProvider(Path("./datadir/replay-crawl-data.sqlite")),
+        SQLiteStorageProvider(Path(join(data_path, "replay-crawl-data.sqlite"))),
         None,
     ) as manager:
         total_index = -1
@@ -82,14 +83,16 @@ def main(crawl_date):
                 total_index += 1
                 if total_index in sites_completed:
                     continue
-                if wprgo.is_running() not in (-1, n):
+                # If wprgo is replaying other archive, stop replaying
+                if wprgo.running_number() not in (-1, n):
                     logger.debug(
                         "Wait the tasks in %d before opening a new replay session for %d"
-                        % (wprgo.is_running(), n)
+                        % (wprgo.running_number(), n)
                     )
                     utils.wait_tasks(manager)
                     wprgo.stop_replay()
-                if wprgo.is_running() != n:
+                # If wprgo is not replaying, replay n-th archive
+                if wprgo.running_number() == -1:
                     logger.debug("Start a new replay session:%d" % (n))
                     wprgo.replay(n)
 
@@ -126,8 +129,7 @@ def main(crawl_date):
 
                 # Run commands across the three browsers (simple parallelization)
                 manager.execute_command_sequence(command_sequence)
-
-    logger.info("End of the crawl session. crawl_date:%s" % wprgo.crawl_date)
+        logger.info("End of the crawl session. crawl_date:%s" % wprgo.crawl_date)
 
 
 if __name__ == "__main__":

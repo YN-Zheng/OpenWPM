@@ -1,10 +1,9 @@
-import math
-from os import times
-import time
-import sqlite3 as lite
-from collections import defaultdict, Counter
 import ast
+import sqlite3 as lite
+import time
+from collections import Counter, defaultdict
 
+from utils import get_base_script_url
 
 # 1. There should be both ToDataURL and fillText (or strokeText) method calls and both calls should come from the same URL.
 # 2. The canvas image(s) read by the script should contain more than one color and its(their) aggregate size should be greater than 16x16 pixels.
@@ -31,15 +30,10 @@ AUDIO_SYMBOLS = {
 }
 
 
-def get_base_script_url(script_url):
-    script_url_no_param = script_url.split("?")[0].split("&")[0].split("#")[0]
-    return script_url_no_param.split("://")[-1].strip()
-
-
 def main():
-
+    crawl_date = "Mar_1_2019"
     # connect to the output database
-    openwpm_db = "tmp/Mar_1_2020/datadir/replay-crawl-data.sqlite"
+    openwpm_db = "data/%s/datadir/replay-crawl-data.sqlite" % crawl_date
     conn = lite.connect(openwpm_db)
     cur = conn.cursor()
 
@@ -70,16 +64,20 @@ def main():
             if is_audio_fp(symbol_args):
                 sites_audio_fp.add(site)
                 scripts_audio_fp[get_base_script_url(script_url)] += 1
+    audio_canvas = sites_canvas_fp & sites_audio_fp
 
     # outputs the results
-    print("Canvas finger printing :%d out of 10,000" % len(sites_canvas_fp))
-    print("Audio finger printing :%d out of 10,000" % len(sites_audio_fp))
+
+    print("\nDate: %s" % crawl_date)
+    print("Canvas finger printing :%4d out of 10,000" % len(sites_canvas_fp))
+    print("Audio finger printing : %4d out of 10,000" % len(sites_audio_fp))
+    print("Both:                   %4d out of 10,000" % len(audio_canvas))
 
     print("\n--- Most common scripts for canvas fp: ---")
-    for fp_script in scripts_canvas_fp.most_common(10):
+    for fp_script in scripts_canvas_fp.most_common(3):
         print(fp_script)
     print("\n--- Most common scripts for audio fp: ---")
-    for fp_script in scripts_audio_fp.most_common(10):
+    for fp_script in scripts_audio_fp.most_common(3):
         print(fp_script)
 
 
@@ -137,9 +135,7 @@ def is_canvas_fp(symbol_args) -> bool:
 
 def is_audio_fp(symbol_args) -> bool:
     symbols = set(symbol_args.keys())
-    if AUDIO_SYMBOLS.issubset(symbols):
-        return True
-    return False
+    return AUDIO_SYMBOLS.issubset(symbols)
 
 
 if __name__ == "__main__":

@@ -95,6 +95,5 @@ openwpm/Extension/firefox/openwpm.xpi
 openwpm/Extension/firefox/src/content.js
 openwpm/Extension/firefox/src/feature.js
 
-datadir
-tmp
+zyn_data
 nohup.out 

@@ -1,4 +1,5 @@
 import atexit
+from collections import Counter
 import logging
 from openwpm.task_manager import TaskManager
 import os
@@ -6,7 +7,11 @@ import signal
 import subprocess
 import sys
 import threading
-from os import path
+from os import path, replace
+from os.path import join
+import re
+
+DATA_STORAGE_PATH = "zyn_data/"
 
 
 def wait_tasks(manager: TaskManager):
@@ -37,17 +42,17 @@ class Wprgo:
             raise ValueError("Must provide a valid har path")
         if not path.isfile(path.join(wprgo_path, "src", "wpr.go")):
             raise ValueError("Must provide a valid WprGo path")
+        self.crawl_date = har_path[har_path.rfind("/") + 1 :]
         self.__wprgo_path = wprgo_path
         self.__har_path = har_path
-        self.__logpipe = self.__LogPipe("replay")
+        self.__logpipe = self.__LogPipe(get_data_path(self.crawl_date, "replay"))
         self.__process = None
         self.__wprgo_path = wprgo_path
         self.number = None
-        self.crawl_date = har_path[har_path.rfind("/") + 1 :]
         self.total_number = len(os.listdir(path.join(self.__har_path, "hostnames")))
         atexit.register(self.stop_replay)
 
-    def is_running(self) -> int:
+    def running_number(self) -> int:
         if self.__process != None:
             return self.number
         return -1
@@ -55,10 +60,10 @@ class Wprgo:
     # number: number of wprgo archive to be replayed
     def replay(self, number):
         # skip if already running
-        if self.is_running() == number:
+        if self.running_number() == number:
             return self.get_hostnames(number)
         # stop running replay(if there is) for other number
-        if self.__process != None:
+        elif self.running_number() != -1:
             self.stop_replay()
         if number > self.total_number or number < 0:
             raise ValueError(
@@ -105,6 +110,7 @@ class Wprgo:
             print("Stop replay session %s:%d" % (self.crawl_date, self.number))
             os.killpg(os.getpgid(self.__process.pid), signal.SIGKILL)
             self.__process = None
+            self.number = None
             self.__logpipe.running.clear()
 
     # https://codereview.stackexchange.com/questions/6567/redirecting-subprocesses-output-stdout-and-stderr-to-the-logging-module
@@ -153,11 +159,17 @@ class Wprgo:
         #     os.close(self.fdWrite)
 
 
-def continue_from_log(wprgo: Wprgo):
-    crawl_date = wprgo.crawl_date
+def get_data_path(crawl_date, file=None):
+    if file == None:
+        return join(DATA_STORAGE_PATH, crawl_date)
+    else:
+        return join(DATA_STORAGE_PATH, crawl_date, file)
+
+
+def get_completed_indexes(crawl_date):
     completed_index = set()
     continue_point_exist = False
-    with open("crawl.log", "r") as log:
+    with open(get_data_path(crawl_date, "crawl.log"), "r") as log:
         for l in log:
             if l.find("Start a new crawl session. crawl_date:%s" % crawl_date) != -1:
                 continue_point_exist = True
@@ -168,14 +180,47 @@ def continue_from_log(wprgo: Wprgo):
                 if i != -1:
                     completed_index.add(int(l[i + 5 : i + 10]))
     return completed_index
-    # count = 0
-    # for group_index in range(wprgo.total_number):
-    #     num_per_group = len(wprgo.get_hostnames(group_index))
-    #     for i in range(count, count + num_per_group):
-    #         if i not in completed_index:
-    #             return count, group_index, completed_index
-    #     count += num_per_group
-    # return count, group_index, completed_index
+
+
+def get_success_indexes(crawl_date):
+    log_path = path.join(get_data_path(crawl_date, "crawl.log"))
+    success_index = set()
+    with open(log_path, "r") as f:
+        for line in f:
+            line = line.strip()
+            if line.find("index") != -1:
+                index = int(line[42:46])
+                success = line[line.rfind("success:") + 8] == "T"
+                if success:
+                    success_index.add(index)
+    return success_index
+
+
+def get_base_script_url(script_url):
+    script_url_no_param = script_url.split("?")[0].split("&")[0].split("#")[0]
+    return script_url_no_param.split("://")[-1].strip()
+
+
+def read_replay_log(crawl_date) -> Counter:
+    log_path = get_data_path(crawl_date, "replay.log")
+    responses = Counter()
+    with open(log_path, "r") as f:
+        for line in f:
+            line = line[36:].strip()
+            line = re.sub(r"(?<=127.0.0.1:)\d+", "xxxxx", line)
+            line = re.sub(r"(?<=\()http.*(?=\))", "xxxxx", line)
+            if line.startswith("ServeHTTP"):
+                i = line.rfind("):")
+                if i != -1:
+                    line = line[i + 3 :]
+                    responses[line] += 1
+            elif line.startswith(
+                ("Loading ", "Opened archive", "Starting server", "Use Ctrl-C")
+            ):
+                continue
+            else:
+                responses[line] += 1
+    return responses
 
 
 def get_wprgo_prefs() -> dict:

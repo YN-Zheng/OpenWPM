@@ -1,76 +1,85 @@
-pid: 2694401
-## Replay
-### TLS handshakes error
-Due to Firefox's automatic connection to:
-- location.services.mozilla.com
-- firefox.settings.services.mozilla.com
-- ...
-Setting prefs is not enough to turn these off. So I will just skip this errors and make them disappear in replay.log
+## Problem
+### Wprgo: replay
+| proportion | Problems                                        |
+| ---------- | ----------------------------------------------- |
+| 20%        | request could not be found.                     |
+| 0.3%       | translating content-encoding error              |
+| 1.14%      | no start tags found, skip injecting script      |
+| 0.3%       | error re(de)compressing response body: identity |
 
-### Driver error (seems negligible)
-many
+
+> Analysis replay.log of 10,000 sites for crawl_date=Mar_1_2020
 ```
-2021-03-21 12:40:18,360 - MainProcess[log-interceptor-759609898]- selenium_firefox     - DEBUG   : BROWSER 759609898: driver: JavaScript error: resource://openwpm/privileged/stackDump/OpenWPMStackDumpChild.jsm, line 119: InvalidStateError: JSWindowActorChild.contentWindow getter: Cannot access property 'contentWindow' after actor 'OpenWPMStackDump' has been destroyed
+('serving 200 response', 840351)
+("couldn't find matching request: not found", 265447)
+('serving 206 response', 166872)
+('serving 302 response', 46233)
+('ScriptInjector(xxxxx): no start tags found, skip injecting script', 20162)
+('serving 204 response', 7958)
+('serving 301 response', 6655)
+('http: TLS handshake error from 127.0.0.1:xxxxx: read tcp 127.0.0.1:xxxxx->127.0.0.1:xxxxx: read: connection reset by peer', 5259)
+('translating Content-Encoding [gzip] -> [identity]', 3518)
+('error recompressing response body: unknown compression: identity', 3518)
+('Error unmarshaling request', 3247)
+('serving 404 response', 3059)
+('serving 307 response', 1901)
+('couldn\'t find matching request: couldn\'t unmarshal response: malformed HTTP status code "-01"', 789)
+('serving 403 response', 684)
+('serving 101 response', 545)
+('serving 400 response', 494)
+('serving 303 response', 491)
+('error decompressing response body: unknown compression: identity', 478)
+('translating Content-Encoding [identity] -> [gzip, deflate, br]', 452)
+('http: TLS handshake error from 127.0.0.1:xxxxx: EOF', 429)
+('serving 304 response', 307)
+('serving 201 response', 300)
+('serving 202 response', 225)
+('serving 503 response', 128)
+('serving 401 response', 122)
+('warning: client response truncated: write tcp 127.0.0.1:xxxxx->127.0.0.1:xxxxx: write: broken pipe', 99)
+('serving 502 response', 63)
+('serving 500 response', 56)
+('serving 504 response', 33)
+('serving 514 response', 30)
+('serving 522 response', 27)
+('translating Content-Encoding [identity] -> [gzip, deflate]', 26)
+('serving 429 response', 16)
+('serving 410 response', 11)
+('warning: client response truncated: readfrom tcp 127.0.0.1:xxxxx->127.0.0.1:xxxxx: write tcp 127.0.0.1:xxxxx->127.0.0.1:xxxxx: write: broken pipe', 11)
+('serving 405 response', 9)
+('serving 412 response', 8)
+('serving 422 response', 8)
+('serving 521 response', 7)
+('warning: client response truncated: write tcp 127.0.0.1:xxxxx->127.0.0.1:xxxxx: write: connection reset by peer', 5)
+('http: TLS handshake error from 127.0.0.1:xxxxx: local error: tls: unexpected message', 5)
+('serving 308 response', 4)
+('serving 416 response', 4)
+('serving 577 response', 4)
+('serving 523 response', 4)
+('serving 456 response', 4)
+('serving 530 response', 3)
+('serving 203 response', 2)
+('serving 402 response', 2)
+('serving 421 response', 2)
+('serving 439 response', 2)
+('serving 451 response', 1)
+('serving 419 response', 1)
+('serving 418 response', 1)
+('serving 408 response', 1)
+('serving 524 response', 1)
+('translating Content-Encoding [gzip] -> []', 1)
+('error recompressing response body: unknown compression:', 1)
+('serving 505 response', 1)
+('serving 599 response', 1)
+('serving 205 response', 1)
+('serving 207 response', 1)
+('serving 520 response', 1)
+('serving 501 response', 1)
 ```
 
-A browser could crash:
-```
-2021-03-21 19:37:04,451 - MainProcess[Thread-11340]- task_manager         - INFO    : BROWSER 3078232822: Timeout while executing command, IntitializeCommand(), killing browser manager
-```
-
-During freeze:(After about 5,000 crawls at one time)
-```
-2021-03-21 19:38:34,507 - MainProcess[MainThread]- storage_controller   - DEBUG   : StorageController status: There are currently 0 scheduled tasks for 219 visit_ids
-```
-
-
-### Incomplete crawl
-
-#### Summary
-- InitializeCommand
-    - timeout(10s)
-- GetCommand:
-    - timeout(60s)
-    - error: selenium.common.exceptions.WebDriverException: Message: Failed to decode response from marionette
-    - error: selenium.common.exceptions.InvalidSessionIdException: Message: Tried to run command without establishing a connection
-    - error: "TypeError: 'Alert' object is not callable
-    - neterror: connectionFailure
-    - neterror: redirectLoop
-- LinkCountingCommand
-    - timeout(30s)
-- FinalizeCommand
-    - error: selenium.common.exceptions.JavascriptException: Message: TypeError: window.open is not a function
-    - selenium.common.exceptions.InvalidSessionIdException: Message: Tried to run command without establishing a connection
-
-
-- neterror: No response
-
+### OpenWPM: unsuccessful crawl
+TODO: read log script
 
 ## Analysis
 ### Canvas FP
-1. The canvas element's height and width properties must not be set below 16 px. 12 
-ctx.font = "16px 'Arial'";
-ctx.fillRect(125,1,62,20);
-
-2. Text must be written to canvas with least two colors or at least 10 distinct characters.
-ctx.fillText(txt, 2, 15);
-ctx.fillStyle = "#069";
-ctx.shadowColor="blue";
-
-3. The script should not call the save, restore, or addE-ventListener methods of the rendering context.
-ctx.save()
-ctx.restore()
-
-4. The script extracts an image with toDataURL or with a single call to getImageData that species an area with a minimum size of 16px  16px.
-getImageData([x,y,width,height])
-HTMLCanvasElement.toDataURL[]  lossy: image/jpeg image/webp
-```
-CanvasRenderingContext2D.getImageData	call		[0,3,1,1]
-CanvasRenderingContext2D.getImageData	call		[0,4,1,1]
-CanvasRenderingContext2D.getImageData	call		[0,5,1,1]
-...
-CanvasRenderingContext2D.getImageData	call		[0,31,1,1]
-```
-
-### Replay
-URL: Mar_1_2017
+### Audio FP
