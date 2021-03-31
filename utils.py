@@ -10,6 +10,7 @@ import threading
 from os import path, replace
 from os.path import join
 import re
+from urllib.parse import urlparse
 
 DATA_STORAGE_PATH = "zyn_data/"
 
@@ -103,6 +104,17 @@ class Wprgo:
                 i = x.rfind(",")
                 hostnames.append(x[:i])
         return hostnames
+
+    def get_filenames(self, number) -> list:
+        hostnames_path = path.join(self.__har_path, "hostnames", "%d.txt" % number)
+        with open(hostnames_path) as f:
+            content = f.readlines()
+            filenames = list()
+            for x in content:
+                x = x.strip()
+                i = x.rfind(",")
+                filenames.append(x[i + 1 :])
+        return filenames
 
     def stop_replay(self):
         # Send the signal to all the process groups
@@ -206,7 +218,7 @@ def get_base_script_url(script_url):
 
 def read_replay_log(crawl_date) -> Counter:
     log_path = get_data_path(crawl_date, "replay.log")
-    responses = Counter()
+    summary = Counter()
     with open(log_path, "r") as f:
         for line in f:
             line = line[36:].strip()
@@ -216,14 +228,45 @@ def read_replay_log(crawl_date) -> Counter:
                 i = line.rfind("):")
                 if i != -1:
                     line = line[i + 3 :]
-                    responses[line] += 1
+                    summary[line] += 1
             elif line.startswith(
                 ("Loading ", "Opened archive", "Starting server", "Use Ctrl-C")
             ):
                 continue
             else:
-                responses[line] += 1
-    return responses
+                summary[line] += 1
+    return summary
+
+
+def get_filename(crawl_date, site, number):
+    har_path = join("/home/yongnian/HttpArchive", crawl_date)
+    wprgo_path = "/home/yongnian/Programs/catapult/web_page_replay_go"
+    wprgo = Wprgo(wprgo_path, har_path)
+    hostnames = wprgo.get_hostnames(number)
+    for i, h in enumerate(hostnames):
+        if site in h:
+            print(site)
+            return wprgo.get_filenames(number)[i]
+
+
+def get_requests_by_status(crawl_date) -> Counter:
+    log_path = get_data_path(crawl_date, "replay.log")
+    requests_unfound = Counter()
+    requests_good = Counter()
+    requests_error = Counter()
+    with open(log_path, "r") as f:
+        for line in f:
+            line = line[36:].strip()
+            if line.startswith("ServeHTTP"):
+                url = re.search(r"(?<=\()http.*(?=\))", line).group()
+                # hostname = urlparse(url).netloc.replace("www.", "")
+                if line.rfind("couldn't find matching request: not found") != -1:
+                    requests_unfound[url] += 1
+                elif re.search(r"serving [1-3]\d\d response", line):
+                    requests_good[url] += 1
+                elif re.search(r"serving [4-5]\d\d response", line):
+                    requests_error[url] += 1
+    return requests_unfound, requests_good, requests_error
 
 
 def get_wprgo_prefs() -> dict:
@@ -234,4 +277,21 @@ def get_wprgo_prefs() -> dict:
     # custom_prefs["geo.enabled"] = False
     # custom_prefs["services.settings.server"] = ""
     # custom_prefs["browser.region.network.url"] = ""
+
+    # Disabling location services
+    # https://www.reddit.com/r/firefox/comments/iq27wa/disabling_location_services_on_firefox_8001/
+    custom_prefs["browser.region.network.url"] = ""
+    custom_prefs["browser.region.update.enabled"] = False
+    custom_prefs["browser.region.local-geocoding"] = False
+
+    # Disabling getpocket
+    # https://www.reddit.com/r/firefox/comments/ch0pj1/despite_pockethome_disabled_firefox_faithfully/
+    custom_prefs["browser.newtabpage.activity-stream.discoverystream.enabled"] = False
+    custom_prefs["browser.newtabpage.activity-stream.feeds.section.topstories"] = False
+    custom_prefs[
+        "browser.newtabpage.activity-stream.section.highlights.includePocket"
+    ] = False
+    custom_prefs["browser.newtabpage.activity-stream.showSponsored"] = False
+    custom_prefs["browser.newtabpage.activity-stream.feeds.discoverystreamfeed"] = False
+    custom_prefs["browser.newtabpage.activity-stream.asrouter.providers.snippets"] = ""
     return custom_prefs

@@ -135,6 +135,6 @@ def main(crawl_date):
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         # print("Must provide a crawl date!")
-        main("Mar_1_2018")
+        main("Jan_1_2018")
     else:
         main(sys.argv[1])

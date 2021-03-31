@@ -1,12 +1,12 @@
 ## Problem
 ### Wprgo: replay
-| proportion | Problems                                        |
-| ---------- | ----------------------------------------------- |
-| 20%        | request could not be found.                     |
-| 0.3%       | translating content-encoding error              |
-| 1.14%      | no start tags found, skip injecting script      |
-| 0.3%       | error re(de)compressing response body: identity |
-
+| proportion | Problems                                                      |
+| ---------- | ------------------------------------------------------------- |
+| 20%        | request could not be found.                                   |
+| 0.3%       | translating content-encoding error                            |
+| 1.14%      | no start tags found, skip injecting script                    |
+| 0.3%       | error re(de)compressing response body: identity               |
+| 0.03%      | couldn't unmarshal response: malformed HTTP status code "-01" |
 
 > Analysis replay.log of 10,000 sites for crawl_date=Mar_1_2020
 ```
@@ -77,10 +77,15 @@
 ('serving 501 response', 1)
 ```
 
+> Request not found:
+- 80% is due to request to less than 100 sites
+- 95%: less than 2000 sites
+- 'long tail'
+
+
 ### OpenWPM: unsuccessful crawl
 1. Popen error
 2. custom_command       - INFO     - There are 0 links on https://enjoypclife.net/
-
 ## Analysis
 ### Canvas FP
 ### Audio FP
