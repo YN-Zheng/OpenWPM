@@ -185,15 +185,18 @@ def get_completed_indexes(crawl_date):
 def get_success_indexes(crawl_date):
     log_path = path.join(get_data_path(crawl_date, "crawl.log"))
     success_index = set()
+    group_num = Counter()
     with open(log_path, "r") as f:
         for line in f:
             line = line.strip()
             if line.find("index") != -1:
                 index = int(line[42:46])
+                group = int(line[54:56])
+                group_num[group] += 1
                 success = line[line.rfind("success:") + 8] == "T"
                 if success:
                     success_index.add(index)
-    return success_index
+    return success_index, group_num
 
 
 def get_base_script_url(script_url):

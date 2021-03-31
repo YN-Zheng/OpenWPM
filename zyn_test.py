@@ -13,11 +13,13 @@ class TestStringMethods(unittest.TestCase):
     #         wprgo.replay(n)
 
     def test_log(self):
-        responses = utils.read_replay_log("Mar_1_2019")
+        responses = utils.read_replay_log("Jan_1_2018")
         for response in responses.most_common():
             print(response)
-        success_index = utils.get_success_indexes("Mar_1_2020")
+        success_index, group_num = utils.get_success_indexes("Jan_1_2018")
         print(len(success_index))
+        for item in sorted(group_num.items()):
+            print(item)
 
 
 if __name__ == "__main__":

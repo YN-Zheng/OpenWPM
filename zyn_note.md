@@ -78,7 +78,8 @@
 ```
 
 ### OpenWPM: unsuccessful crawl
-TODO: read log script
+1. Popen error
+2. custom_command       - INFO     - There are 0 links on https://enjoypclife.net/
 
 ## Analysis
 ### Canvas FP
